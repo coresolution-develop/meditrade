@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+.next/
+coverage/
+
+# Env (secrets - never commit)
+.env
+.env.local
+.env.*.local
+apps/*/.env
+apps/*/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Prisma
+*.db

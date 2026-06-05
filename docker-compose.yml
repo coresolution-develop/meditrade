@@ -1,0 +1,24 @@
+# 로컬 개발용 PostgreSQL
+# 사용: docker compose up -d  (중지: docker compose down)
+# 데이터는 named volume(meditrade_pgdata)에 보존됨. 완전 초기화: docker compose down -v
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meditrade-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: meditrade
+      POSTGRES_PASSWORD: meditrade_local_pw   # ⚠️ 로컬 개발 전용. 운영에서는 절대 사용 금지(시크릿 분리)
+      POSTGRES_DB: meditrade
+    ports:
+      - "5433:5432"   # 호스트 로컬 postgres 5432 충돌 회피
+    volumes:
+      - meditrade_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meditrade -d meditrade"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  meditrade_pgdata:
