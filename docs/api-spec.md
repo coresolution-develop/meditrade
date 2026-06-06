@@ -111,6 +111,24 @@
 
 ---
 
+### GET /products/mine — 내(판매자) 상품 목록 🔒 SELLER
+**헤더**: `Authorization: Bearer <token>`
+
+토큰의 `sellerId` 로 본인 상품만 조회. `GET /products` 와 달리 **`status` 필터 없이**(DRAFT/PENDING/ON_SALE/SOLD_OUT/HIDDEN 모두) 최신순 페이징.
+
+**쿼리 파라미터**
+| 이름 | 타입 | 기본 | 설명 |
+| --- | --- | --- | --- |
+| page | int | 1 | 페이지 |
+| size | int | 20 | 페이지 크기 |
+
+**응답 200**: `GET /products` 와 동일 구조 `{ items, total, page, size }`.
+**에러**: 401 `UNAUTHORIZED`, 403 `FORBIDDEN`(SELLER 아님)
+
+> ⚠️ 라우팅 주의: `/products/{id}` 보다 위에 선언되어야 `mine` 이 id 로 해석되지 않는다.
+
+---
+
 ### GET /products/{id} — 상세
 **응답 200**
 ```json

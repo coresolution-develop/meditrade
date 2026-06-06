@@ -28,6 +28,18 @@ export class ProductController {
     return this.productService.findAll(page, size);
   }
 
+  // ⚠️ '/products/:id' 보다 먼저 선언되어야 'mine' 이 id 로 해석되지 않는다.
+  @Get('mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SELLER')
+  findMine(
+    @Req() req: any,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('size', new ParseIntPipe({ optional: true })) size = 20,
+  ) {
+    return this.productService.findMine(BigInt(req.user.id), page, size);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productService.findOne(BigInt(id));

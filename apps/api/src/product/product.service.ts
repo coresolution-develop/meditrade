@@ -44,6 +44,24 @@ export class ProductService {
     return { items: items.map(serialize), total, page, size };
   }
 
+  /**
+   * 판매자 본인 상품 목록. status 필터 없이(DRAFT/HIDDEN 포함) 전체 최신순.
+   * 컨트롤러에서 SELLER 가드 + 토큰의 sellerId 로 호출된다.
+   */
+  async findMine(sellerId: bigint, page = 1, size = 20) {
+    const skip = (page - 1) * size;
+    const [items, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { sellerId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: size,
+      }),
+      this.prisma.product.count({ where: { sellerId } }),
+    ]);
+    return { items: items.map(serialize), total, page, size };
+  }
+
   async findOne(id: bigint) {
     const product = await this.prisma.product.findUnique({
       where: { id },
