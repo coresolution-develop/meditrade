@@ -43,7 +43,8 @@ model Member {
   status    MemberStatus @default(ACTIVE)
   createdAt DateTime     @default(now()) @map("created_at")
 
-  products  Product[]
+  products     Product[]
+  businessInfo BusinessInfo? // P2: BusinessInfo 양방향 관계용 back-relation
 
   @@map("member")
 }
@@ -95,4 +96,162 @@ model ProductImage {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_image")
+}
+
+// =====================================================
+// Phase 2 모델 (PHASE2-TASKS.md A-2 코드블록 그대로)
+// 모듈/서비스/컨트롤러는 B~G 묶음에서 추가.
+// =====================================================
+
+enum VerifyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InquiryStatus {
+  OPEN
+  QUOTED
+  CLOSED
+}
+
+enum MeetingType {
+  ONLINE
+  VISIT_SELLER
+  VISIT_BUYER
+}
+
+enum MeetingStatus {
+  REQUESTED
+  ACCEPTED
+  REJECTED
+  RESCHEDULE_PROPOSED
+  CONFIRMED
+  COMPLETED
+  CANCELED
+}
+
+enum DealStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum SlotProposer {
+  BUYER
+  SELLER
+}
+
+model BusinessInfo {
+  id                   BigInt       @id @default(autoincrement())
+  memberId             BigInt       @unique @map("member_id")
+  companyName          String       @map("company_name") @db.VarChar(100)
+  bizRegNo             String       @map("biz_reg_no") @db.VarChar(20)
+  deviceSalesLicenseNo String?      @map("device_sales_license_no") @db.VarChar(50)
+  verifyStatus         VerifyStatus @default(PENDING) @map("verify_status")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  member               Member       @relation(fields: [memberId], references: [id])
+  @@map("business_info")
+}
+
+model Favorite {
+  id        BigInt   @id @default(autoincrement())
+  buyerId   BigInt   @map("buyer_id")
+  productId BigInt   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([buyerId, productId])
+  @@map("favorite")
+}
+
+model Inquiry {
+  id        BigInt        @id @default(autoincrement())
+  productId BigInt        @map("product_id")
+  buyerId   BigInt        @map("buyer_id")
+  sellerId  BigInt        @map("seller_id")
+  message   String?
+  status    InquiryStatus @default(OPEN)
+  createdAt DateTime      @default(now()) @map("created_at")
+  quotes    Quote[]
+  @@index([sellerId])
+  @@index([buyerId])
+  @@map("inquiry")
+}
+
+model Quote {
+  id         BigInt   @id @default(autoincrement())
+  inquiryId  BigInt   @map("inquiry_id")
+  quotePrice BigInt   @map("quote_price")
+  validUntil DateTime @map("valid_until") @db.Date
+  memo       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  inquiry    Inquiry  @relation(fields: [inquiryId], references: [id])
+  @@map("quote")
+}
+
+model MeetingRequest {
+  id          BigInt        @id @default(autoincrement())
+  buyerId     BigInt        @map("buyer_id")
+  sellerId    BigInt        @map("seller_id")
+  productId   BigInt?       @map("product_id")
+  meetingType MeetingType   @map("meeting_type")
+  purpose     String        @db.VarChar(100)
+  message     String?
+  location    String?       @db.VarChar(200)
+  confirmedAt DateTime?     @map("confirmed_at")
+  status      MeetingStatus @default(REQUESTED)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  slots       MeetingSlot[]
+  @@index([sellerId])
+  @@index([buyerId])
+  @@map("meeting_request")
+}
+
+model MeetingSlot {
+  id         BigInt         @id @default(autoincrement())
+  meetingId  BigInt         @map("meeting_id")
+  proposedAt DateTime       @map("proposed_at")
+  proposedBy SlotProposer   @map("proposed_by")
+  isSelected Boolean        @default(false) @map("is_selected")
+  meeting    MeetingRequest @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  @@map("meeting_slot")
+}
+
+model Deal {
+  id          BigInt     @id @default(autoincrement())
+  inquiryId   BigInt?    @map("inquiry_id")
+  productId   BigInt     @map("product_id")
+  buyerId     BigInt     @map("buyer_id")
+  sellerId    BigInt     @map("seller_id")
+  finalPrice  BigInt     @map("final_price")
+  status      DealStatus @default(REQUESTED)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  completedAt DateTime?  @map("completed_at")
+  reviews     Review[]
+  @@map("deal")
+}
+
+model Review {
+  id        BigInt   @id @default(autoincrement())
+  dealId    BigInt   @map("deal_id")
+  buyerId   BigInt   @map("buyer_id")
+  sellerId  BigInt   @map("seller_id")
+  rating    Int      @db.SmallInt
+  content   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  deal      Deal     @relation(fields: [dealId], references: [id])
+  @@map("review")
+}
+
+model Notification {
+  id        BigInt   @id @default(autoincrement())
+  memberId  BigInt   @map("member_id")
+  type      String   @db.VarChar(40)
+  title     String   @db.VarChar(200)
+  body      String?
+  linkUrl   String?  @map("link_url") @db.VarChar(500)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([memberId, isRead])
+  @@map("notification")
 }

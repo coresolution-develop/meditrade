@@ -33,7 +33,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? resBody.message.join(', ')
           : String(resBody.message);
       } else {
-        code = this.mapStatusToCode(status);
+        // 도메인 코드(예: ILLEGAL_STATE)를 응답 본문에 명시적으로 담은 경우 우선 사용
+        code = resBody?.code ?? this.mapStatusToCode(status);
         message = resBody?.message ?? exception.message;
       }
     }

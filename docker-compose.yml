@@ -1,4 +1,4 @@
-# 로컬 개발용 PostgreSQL
+# 로컬 개발용 인프라(PostgreSQL + Redis)
 # 사용: docker compose up -d  (중지: docker compose down)
 # 데이터는 named volume(meditrade_pgdata)에 보존됨. 완전 초기화: docker compose down -v
 services:
@@ -20,5 +20,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: meditrade-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - meditrade_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   meditrade_pgdata:
+  meditrade_redisdata:
