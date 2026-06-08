@@ -19,9 +19,26 @@ const CATEGORY_NAMES = [
 ];
 
 async function main() {
+  // ADMIN 계정은 항상 멱등 보장(이전 시드 후 G 묶음 추가 시에도 필요).
+  // 비밀번호는 매 실행마다 재해시되어 upsert 갱신된다.
+  const adminPw = await bcrypt.hash('test1234', 10);
+  await prisma.member.upsert({
+    where: { email: 'admin@test.com' },
+    update: { password: adminPw, role: Role.ADMIN, status: 'ACTIVE' },
+    create: {
+      email: 'admin@test.com',
+      password: adminPw,
+      name: '테스트관리자',
+      phone: '010-0000-0099',
+      role: Role.ADMIN,
+      status: 'ACTIVE',
+    },
+  });
+  console.log('✅ ADMIN 계정 보장 (admin@test.com / test1234)');
+
   const existing = await prisma.category.count();
   if (existing > 0) {
-    console.log('ℹ️  Seed skipped: 카테고리가 이미 존재합니다.');
+    console.log('ℹ️  나머지 시드 skipped: 카테고리가 이미 존재합니다.');
     return;
   }
 

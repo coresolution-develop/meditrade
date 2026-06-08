@@ -559,12 +559,269 @@ REQUESTED → RESCHEDULE_PROPOSED → (ACCEPTED | CONFIRMED | CANCELED)
 
 ---
 
-## 8. Phase 2 잔여 엔드포인트 (개요)
+## 8. 거래 (DEAL) — P2 묶음 E
 
-> 확정 시 위와 동일한 형식으로 상세화한다. 모두 공통 응답 포맷·인증 헤더를 따른다.
+### Deal 상태 전이 (강제)
+```
+REQUESTED → IN_PROGRESS → COMPLETED       (terminal)
+(REQUESTED | IN_PROGRESS) → CANCELED      (terminal)
+```
+- 양측(buyer / seller) 모두 전이 수행 가능.
+- 허용되지 않은 전이는 409 `ILLEGAL_STATE` (현재 상태값은 로그에만).
+- `COMPLETED` 진입 시 `completedAt` 기록.
 
-| Method | URI | 설명 | 권한 |
-| --- | --- | --- | --- |
-| POST | `/deals` | 거래 생성 | BUYER |
-| PATCH | `/deals/{id}/status` | 거래 상태 변경 | BUYER/SELLER |
-| POST | `/reviews` | 리뷰 작성 | BUYER |
+---
+
+### POST /deals — 거래 생성 🔒 BUYER
+**요청**
+```json
+{ "inquiryId": 1, "quoteId": 1 }
+```
+- `inquiryId`: 필수. 본인(buyer)의 문의이며 `status=QUOTED` 여야 한다.
+- `quoteId`: 선택. 미지정 시 해당 문의의 **최신 견적** 사용.
+
+처리: `inquiry.productId` / `sellerId` / `quote.quotePrice` 를 자동 도출해 `Deal(status=REQUESTED)` 생성. 동일 문의에 거래가 이미 있으면 409.
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "id": "1",
+    "inquiryId": "1",
+    "productId": "3",
+    "buyerId": "2",
+    "sellerId": "1",
+    "finalPrice": 3200000,
+    "status": "REQUESTED",
+    "createdAt": "2026-06-06T15:00:00.000Z",
+    "completedAt": null
+  } }
+```
+**에러**: 401 / 403(BUYER 아님 / 타인 문의) / 404(문의·견적 없음) / 409(이미 거래 존재 / inquiry 가 QUOTED 가 아님 → `ILLEGAL_STATE`) / 400
+
+---
+
+### GET /deals?role=buyer|seller — 내 거래 목록 🔒 인증
+- `role` 필수.
+
+**응답 200**: 위 구조의 배열 `{ items, total }`.
+
+---
+
+### PATCH /deals/{id}/status — 상태 변경 🔒 인증 (양측)
+**요청**
+```json
+{ "status": "IN_PROGRESS" }
+```
+- `status`: `REQUESTED` → `IN_PROGRESS` → `COMPLETED` / `(REQUESTED|IN_PROGRESS)` → `CANCELED`.
+
+**응답 200**: 변경된 거래.
+**에러**: 401 / 403(타인 거래) / 404 / 409 `ILLEGAL_STATE`
+
+---
+
+## 9. 리뷰 (REVIEW) — P2 묶음 E
+
+### POST /reviews — 리뷰 작성 🔒 BUYER
+**요청**
+```json
+{ "dealId": 1, "rating": 5, "content": "친절한 응대와 빠른 배송 감사합니다." }
+```
+- `dealId`: 본인(buyer)의 `COMPLETED` 거래만.
+- `rating`: 1~5 정수.
+- `content`: 1~2000자 (선택).
+- 거래당 1회만 작성 가능 (재작성 시 409).
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "id": "1",
+    "dealId": "1",
+    "buyerId": "2",
+    "sellerId": "1",
+    "rating": 5,
+    "content": "친절한 응대와 빠른 배송 감사합니다.",
+    "createdAt": "2026-06-06T15:10:00.000Z"
+  } }
+```
+**에러**: 401 / 403(BUYER 아님 / 타인 거래) / 404 / 409(중복 / 거래 미완료 → `ILLEGAL_STATE`) / 400
+
+---
+
+### GET /sellers/{id}/reviews — 판매자 리뷰 목록 + 평균 평점 (공개)
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "sellerId": "1",
+    "total": 12,
+    "averageRating": 4.83,
+    "items": [
+      {
+        "id": "1",
+        "dealId": "1",
+        "buyerId": "2",
+        "sellerId": "1",
+        "rating": 5,
+        "content": "친절한 응대...",
+        "createdAt": "2026-06-06T15:10:00.000Z"
+      }
+    ]
+  } }
+```
+- `averageRating`: 소수 둘째 자리까지. 리뷰가 없으면 `null`.
+
+**에러**: 404 (판매자 없음)
+
+---
+
+## 10. 알림 (NOTIFICATION) — P2 묶음 F
+
+### 알림 타입(`type`)
+| 코드 | 의미 | NOTI 매핑 |
+| --- | --- | --- |
+| `INQUIRY_RECEIVED` | 판매자에게 문의 도착 | NOTI-001 |
+| `QUOTE_RECEIVED` | 구매자에게 견적 발송됨 | NOTI-002 |
+| `DEAL_STATUS_CHANGED` | 거래 시작/상태 변경 (양측) | NOTI-003 |
+| `MEETING_REQUESTED` | 판매자에게 미팅 요청 도착 | NOTI-004 |
+| `MEETING_RESPONDED` | 상대방에게 미팅 응답·확정·취소 | NOTI-004 |
+
+> 알림 생성은 **best-effort**. 알림 저장 실패가 본 도메인 동작(문의/거래/미팅 생성·변경)을 깨뜨리지 않는다. 실패는 서버 로그에만 기록.
+> `title` / `body` 는 일반화. 민감정보·내부 상세는 응답·알림에 노출하지 않는다.
+
+---
+
+### GET /notifications — 내 알림 목록 🔒 인증
+미읽음(`isRead=false`) 우선, 그 다음 최신순.
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "items": [
+      {
+        "id": "1",
+        "memberId": "2",
+        "type": "QUOTE_RECEIVED",
+        "title": "견적이 도착했습니다.",
+        "body": "내 문의/견적 목록에서 견적을 확인하세요.",
+        "linkUrl": "/buyer/inquiries/3",
+        "isRead": false,
+        "createdAt": "2026-06-06T15:30:00.000Z"
+      }
+    ],
+    "total": 12,
+    "unread": 3
+  } }
+```
+**에러**: 401
+
+---
+
+### PATCH /notifications/{id}/read — 읽음 처리 🔒 인증 (소유자)
+이미 읽음인 경우도 200(멱등).
+
+**응답 200**: 갱신된 알림.
+**에러**: 401 / 403(타인 알림) / 404
+
+---
+
+## 11. 관리자 (ADMIN) — P2 묶음 G
+
+> 모두 `🔒 ADMIN` 권한 필수 (`JwtAuthGuard` + `@Roles('ADMIN')`). 비ADMIN 접근 → 403.
+> 알림이 발생하는 경우(사업자 인증, 회원 정지)는 best-effort.
+
+---
+
+### PATCH /admin/business-info/{id} — 사업자 인증 승인/반려
+**요청**
+```json
+{ "verifyStatus": "APPROVED", "reason": "심사 통과" }
+```
+- `verifyStatus`: `APPROVED` | `REJECTED` (필수). `PENDING` 으로 되돌리려면 별도 절차.
+- `reason`: 1~500자 (선택). 응답·알림에 노출하지 않고 로그 기록용.
+
+처리: `BusinessInfo.verifyStatus` 갱신 + 해당 SELLER 에게 `BUSINESS_INFO_VERIFIED` 알림.
+
+**응답 200**: business-info 객체.
+**에러**: 401 / 403 / 404 / 400
+
+---
+
+### PATCH /admin/products/{id}/status — 상품 상태 변경(검수)
+**요청**
+```json
+{ "status": "HIDDEN" }
+```
+- `status`: `DRAFT` | `PENDING` | `ON_SALE` | `SOLD_OUT` | `HIDDEN`.
+
+**응답 200**: 변경된 상품 요약(id, status, sellerId, categoryId, name, price).
+**에러**: 401 / 403 / 404
+
+---
+
+### GET /admin/categories — 카테고리 목록
+정렬: `sortOrder` ASC, `id` ASC.
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "items": [
+      { "id": "1", "name": "치료기기", "parentId": null, "sortOrder": 1 }
+    ],
+    "total": 9
+  } }
+```
+
+### POST /admin/categories — 카테고리 생성
+**요청**
+```json
+{ "name": "초음파", "parentId": 6, "sortOrder": 10 }
+```
+- `name`: 1~50자 (필수). `parentId`/`sortOrder`: 선택.
+- 상위 카테고리 존재 시에만 `parentId` 허용 (404).
+
+### PUT /admin/categories/{id} — 카테고리 수정
+요청 필드 모두 선택. 자기 자신을 상위로 지정 → 409.
+
+### DELETE /admin/categories/{id} — 카테고리 삭제
+**정책**:
+- 해당 카테고리를 사용 중인 **상품이 있으면 409 CONFLICT**.
+- **하위 카테고리가 있으면 409 CONFLICT**.
+- 두 조건 모두 통과해야 hard delete.
+
+**에러**: 401 / 403 / 404 / 409
+
+---
+
+### GET /admin/manufacturers — 제조사 목록
+정렬: `sortOrder` ASC, `id` ASC.
+
+### POST /admin/manufacturers — 제조사 생성
+**요청**
+```json
+{ "name": "GE Healthcare", "country": "미국", "sortOrder": 0 }
+```
+
+### PUT /admin/manufacturers/{id} — 제조사 수정 / DELETE /admin/manufacturers/{id} — 삭제
+**정책**: 현재 스키마에서 `Product` 가 `manufacturerId` FK 를 갖지 않으므로 **참조 무결성 검사 없이 항상 삭제 허용**.
+도메인에 제조사 연결이 도입되면 카테고리와 동일한 사용중 검사 추가 예정.
+
+---
+
+### PATCH /admin/members/{id}/status — 회원 정지/해제
+**요청**
+```json
+{ "status": "SUSPENDED" }
+```
+- `status`: `ACTIVE` | `SUSPENDED` (필수). `PENDING` 으로 되돌리는 건 차단.
+
+처리: `Member.status` 갱신 + 해당 회원에게 `MEMBER_STATUS_CHANGED` 알림.
+
+> ⚠️ 정지 시점에 보유 access 토큰의 강제 무효화는 본 묶음 범위 밖.
+> 운영에서는 Redis 블랙리스트에 사용자 단위 차단을 추가하는 후속 작업으로.
+
+**응답 200**: 회원 요약(id, email, name, role, status).
+**에러**: 401 / 403 / 404 / 400

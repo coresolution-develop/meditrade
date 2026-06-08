@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { MeetingStatus, Prisma, SlotProposer } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/notification.types';
 import {
   CreateMeetingDto,
   MeetingRole,
@@ -88,7 +90,10 @@ const TRANSITIONS: Record<
 export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notification: NotificationService,
+  ) {}
 
   /** BUYER: 새 미팅 요청 생성 + 희망 슬롯(BUYER 제안). */
   async create(buyerId: bigint, dto: CreateMeetingDto) {
@@ -148,7 +153,13 @@ export class MeetingService {
       include: { slots: true },
     });
 
-    // TODO(F): 판매자에게 NOTI-004(요청 도착) 알림 생성 (묶음 F)
+    // NOTI-004 — 판매자에게 미팅 요청 도착 알림 (best-effort)
+    await this.notification.notify(meeting.sellerId, {
+      type: NotificationType.MEETING_REQUESTED,
+      title: '새 미팅 요청이 도착했습니다.',
+      body: '받은 미팅 요청 목록에서 일정을 확인하세요.',
+      linkUrl: `/seller/meetings/${meeting.id.toString()}`,
+    });
     return serializeMeeting(meeting);
   }
 
@@ -272,7 +283,15 @@ export class MeetingService {
       }),
     ]);
 
-    // TODO(F): 상태 변경에 따른 NOTI-004(응답) 알림 생성 (묶음 F)
+    // NOTI-004 — 상대방에게 응답 알림 (best-effort)
+    const counterpartyId =
+      actor === 'seller' ? meeting.buyerId : meeting.sellerId;
+    await this.notification.notify(counterpartyId, {
+      type: NotificationType.MEETING_RESPONDED,
+      title: '미팅 요청 상태가 변경되었습니다.',
+      body: '미팅 목록에서 최신 상태와 일정을 확인하세요.',
+      linkUrl: `/meetings/${meetingId.toString()}`,
+    });
 
     const fresh = await this.prisma.meetingRequest.findUnique({
       where: { id: meetingId },

@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { InquiryStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/notification.types';
 import {
   CreateInquiryDto,
   CreateQuoteDto,
@@ -51,7 +53,10 @@ function illegalState(message: string) {
 export class InquiryService {
   private readonly logger = new Logger(InquiryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notification: NotificationService,
+  ) {}
 
   /** BUYER: 상품에 문의 발송. sellerId 는 상품에서 도출. */
   async create(buyerId: bigint, dto: CreateInquiryDto) {
@@ -70,7 +75,13 @@ export class InquiryService {
       },
     });
 
-    // TODO(F): 판매자에게 NOTI-001 알림 생성 (묶음 F)
+    // NOTI-001 — 판매자에게 문의 도착 알림 (best-effort)
+    await this.notification.notify(product.sellerId, {
+      type: NotificationType.INQUIRY_RECEIVED,
+      title: '새 문의가 도착했습니다.',
+      body: '받은 문의 목록에서 내용을 확인하세요.',
+      linkUrl: `/seller/inquiries/${inquiry.id.toString()}`,
+    });
     return serializeInquiry(inquiry);
   }
 
@@ -151,7 +162,13 @@ export class InquiryService {
       }),
     ]);
 
-    // TODO(F): 구매자에게 NOTI-002 알림 생성 (묶음 F)
+    // NOTI-002 — 구매자에게 견적 발송 알림 (best-effort)
+    await this.notification.notify(inquiry.buyerId, {
+      type: NotificationType.QUOTE_RECEIVED,
+      title: '견적이 도착했습니다.',
+      body: '내 문의/견적 목록에서 견적을 확인하세요.',
+      linkUrl: `/buyer/inquiries/${inquiry.id.toString()}`,
+    });
     return serializeQuote(quote);
   }
 }

@@ -98,6 +98,18 @@ model ProductImage {
   @@map("product_image")
 }
 
+// Phase 2 묶음 G — 제조사 마스터 데이터.
+// 현재 Product 에는 manufacturerId FK 를 추가하지 않는다(범위 최소화).
+// 따라서 제조사 삭제는 항상 허용된다(참조 무결성 검사 없음).
+model Manufacturer {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  country   String?  @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+
+  @@map("manufacturer")
+}
+
 // =====================================================
 // Phase 2 모델 (PHASE2-TASKS.md A-2 코드블록 그대로)
 // 모듈/서비스/컨트롤러는 B~G 묶음에서 추가.
