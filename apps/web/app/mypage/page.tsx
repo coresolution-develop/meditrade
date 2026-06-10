@@ -13,7 +13,7 @@ interface MenuItem {
 }
 
 const BUYER_MENU: MenuItem[] = [
-  { label: "찜 목록", phase: "P2" },
+  { label: "찜 목록", href: "/buyer/favorites", phase: "P2" },
   { label: "내 문의·견적", phase: "P2" },
   { label: "내 미팅 요청", phase: "P2" },
   { label: "거래 내역", phase: "P2" },
@@ -24,7 +24,11 @@ const SELLER_MENU: MenuItem[] = [
   { label: "받은 문의", phase: "P2" },
   { label: "받은 미팅 요청", phase: "P2" },
   { label: "거래 관리", phase: "P2" },
-  { label: "사업자 인증", phase: "P2" },
+  { label: "사업자 인증", href: "/seller/business-info", phase: "P2" },
+];
+
+const ADMIN_MENU: MenuItem[] = [
+  { label: "관리자 콘솔", phase: "P2" },
 ];
 
 export default function MyPage() {
@@ -58,7 +62,12 @@ export default function MyPage() {
     );
   }
 
-  const menu = member.role === "SELLER" ? SELLER_MENU : BUYER_MENU;
+  const menu =
+    member.role === "ADMIN"
+      ? ADMIN_MENU
+      : member.role === "SELLER"
+        ? SELLER_MENU
+        : BUYER_MENU;
 
   return (
     <div className="flex flex-col gap-6">

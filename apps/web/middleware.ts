@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Role } from "@/types/api";
 import { TOKEN_COOKIE, MEMBER_COOKIE, decodeMember } from "@/lib/auth-cookie";
 
-const PROTECTED_PREFIXES = ["/seller", "/mypage"];
-const SELLER_ONLY_PREFIXES = ["/seller"];
+// 로그인만 필요한(역할 무관) 보호 프리픽스
+const AUTH_PREFIXES = ["/mypage", "/notifications"];
 
-export function middleware(req: NextRequest) {
+// 역할 전용 프리픽스 → 요구 역할
+const ROLE_PREFIXES: { prefix: string; role: Role }[] = [
+  { prefix: "/seller", role: "SELLER" },
+  { prefix: "/buyer", role: "BUYER" },
+  { prefix: "/admin", role: "ADMIN" },
+];
+
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (!PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  const roleRule = ROLE_PREFIXES.find((r) => pathname.startsWith(r.prefix));
+  const needsAuth =
+    roleRule !== undefined ||
+    AUTH_PREFIXES.some((p) => pathname.startsWith(p));
+
+  if (!needsAuth) return NextResponse.next();
 
   const token = req.cookies.get(TOKEN_COOKIE)?.value;
   if (!token) {
@@ -19,9 +30,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (SELLER_ONLY_PREFIXES.some((p) => pathname.startsWith(p))) {
+  if (roleRule) {
     const member = decodeMember(req.cookies.get(MEMBER_COOKIE)?.value);
-    if (!member || member.role !== "SELLER") {
+    if (!member || member.role !== roleRule.role) {
       const url = req.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
@@ -32,5 +43,11 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/seller/:path*", "/mypage/:path*"],
+  matcher: [
+    "/seller/:path*",
+    "/buyer/:path*",
+    "/admin/:path*",
+    "/mypage/:path*",
+    "/notifications/:path*",
+  ],
 };

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { Member } from "@/types/api";
+import { useRouter } from "next/navigation";
+import type { Member, Role } from "@/types/api";
 import { MEMBER_COOKIE } from "@/lib/auth-cookie";
 
 const AUTH_EVENT = "mt:auth-changed";
@@ -67,4 +68,37 @@ export async function logout(): Promise<void> {
     credentials: "same-origin",
   });
   notifyAuthChanged();
+}
+
+/**
+ * 역할 전용 페이지 가드. 미들웨어가 1차로 막지만, 클라이언트에서도
+ * 미인증/역할 불일치 시 리다이렉트하여 잘못된 화면 노출을 방지한다.
+ * 반환 `ready` 가 true 일 때만 본문을 렌더한다.
+ */
+export function useRequireRole(role: Role): {
+  member: Member | null;
+  loading: boolean;
+  ready: boolean;
+} {
+  const { member, loading } = useMember();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!member) {
+      const next =
+        typeof window !== "undefined"
+          ? encodeURIComponent(window.location.pathname + window.location.search)
+          : "";
+      router.replace(`/login?next=${next}`);
+    } else if (member.role !== role) {
+      router.replace("/");
+    }
+  }, [loading, member, role, router]);
+
+  return {
+    member,
+    loading,
+    ready: !loading && member?.role === role,
+  };
 }

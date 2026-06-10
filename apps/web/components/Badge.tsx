@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import type { ConditionType, ProductStatus } from "@/types/api";
-import { CONDITION_LABEL, STATUS_LABEL } from "@/lib/format";
+import { CONDITION_LABEL, STATUS_LABEL, type Tone } from "@/lib/format";
 
 const conditionStyle: Record<ConditionType, string> = {
   NEW: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -40,4 +41,24 @@ export function NegotiableBadge() {
       협의 가능
     </span>
   );
+}
+
+// 톤 기반 범용 뱃지 — P2 상태값(사업자/문의/미팅/거래/회원)에 사용.
+const toneStyle: Record<Tone, string> = {
+  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  amber: "bg-amber-50 text-amber-700 border-amber-200",
+  red: "bg-rose-50 text-rose-700 border-rose-200",
+  slate: "bg-slate-100 text-slate-600 border-slate-200",
+  blue: "bg-sky-50 text-sky-700 border-sky-200",
+  indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
+};
+
+export function Pill({
+  tone = "slate",
+  children,
+}: {
+  tone?: Tone;
+  children: ReactNode;
+}) {
+  return <span className={`${base} ${toneStyle[tone]}`}>{children}</span>;
 }
