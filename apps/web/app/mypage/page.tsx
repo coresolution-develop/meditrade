@@ -28,7 +28,7 @@ const SELLER_MENU: MenuItem[] = [
 ];
 
 const ADMIN_MENU: MenuItem[] = [
-  { label: "관리자 콘솔", phase: "P2" },
+  { label: "관리자 콘솔", href: "/admin", phase: "P2" },
 ];
 
 export default function MyPage() {

@@ -343,6 +343,76 @@ export interface MemberSummary {
   status: MemberStatus;
 }
 
+// 관리자 목록 응답 (보강된 조회 API)
+export interface AdminMemberItem extends MemberSummary {
+  phone: string | null;
+  createdAt: string;
+}
+export interface AdminMemberList {
+  items: AdminMemberItem[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface AdminBusinessInfoItem extends BusinessInfo {
+  member: { id: string; email: string; name: string } | null;
+}
+export interface AdminBusinessInfoList {
+  items: AdminBusinessInfoItem[];
+  total: number;
+}
+
+export interface AdminProductItem {
+  id: string;
+  sellerId: string;
+  categoryId: string;
+  name: string;
+  modelName: string | null;
+  conditionType: ConditionType;
+  price: number | null;
+  status: ProductStatus;
+  createdAt: string;
+}
+export interface AdminProductList {
+  items: AdminProductItem[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+// 관리자 변경 body
+export interface UpdateBusinessInfoVerifyBody {
+  verifyStatus: "APPROVED" | "REJECTED";
+  reason?: string;
+}
+export interface UpdateProductStatusBody {
+  status: ProductStatus;
+}
+export interface UpdateMemberStatusBody {
+  status: "ACTIVE" | "SUSPENDED";
+}
+export interface CreateCategoryBody {
+  name: string;
+  parentId?: number;
+  sortOrder?: number;
+}
+export interface UpdateCategoryBody {
+  name?: string;
+  parentId?: number;
+  sortOrder?: number;
+}
+export interface CreateManufacturerBody {
+  name: string;
+  country?: string;
+  sortOrder?: number;
+}
+export interface UpdateManufacturerBody {
+  name?: string;
+  country?: string;
+  sortOrder?: number;
+}
+
 // 시드된 카테고리 — 백엔드에 GET /categories 가 없는 P1 한정 정적 목록.
 // 시드의 Promise.all 비결정성으로 name↔id 매핑은 실제 DB 기준.
 export const SEED_CATEGORIES: Category[] = [
