@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { InquiryButton } from "@/components/InquiryButton";
 import { formatPrice } from "@/lib/format";
 import type { ProductDetail } from "@/types/api";
 
@@ -171,14 +172,7 @@ export default function ProductDetailPage({ params }: Props) {
 
         <div className="sticky bottom-4 flex gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <FavoriteButton productId={data.id} />
-          <Button
-            variant="secondary"
-            className="flex-1"
-            disabled
-            title="Phase 2"
-          >
-            문의 / 견적 (P2)
-          </Button>
+          <InquiryButton productId={data.id} className="flex-1" />
           <Button
             variant="primary"
             className="flex-1"
