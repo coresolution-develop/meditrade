@@ -16,14 +16,15 @@ const BUYER_MENU: MenuItem[] = [
   { label: "찜 목록", href: "/buyer/favorites", phase: "P2" },
   { label: "내 문의·견적", href: "/buyer/inquiries", phase: "P2" },
   { label: "내 미팅 요청", phase: "P2" },
-  { label: "거래 내역", phase: "P2" },
+  { label: "거래 내역", href: "/buyer/deals", phase: "P2" },
 ];
 
 const SELLER_MENU: MenuItem[] = [
+  { label: "판매자 대시보드", href: "/seller", phase: "P2" },
   { label: "내 상품", href: "/seller/products", phase: "P1" },
   { label: "받은 문의", href: "/seller/inquiries", phase: "P2" },
   { label: "받은 미팅 요청", phase: "P2" },
-  { label: "거래 관리", phase: "P2" },
+  { label: "거래 관리", href: "/seller/deals", phase: "P2" },
   { label: "사업자 인증", href: "/seller/business-info", phase: "P2" },
 ];
 

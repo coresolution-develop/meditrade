@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
@@ -11,6 +12,7 @@ import { useRequireRole } from "@/lib/auth-client";
 import type { Inquiry, InquiryList } from "@/types/api";
 
 export default function BuyerInquiriesPage() {
+  const router = useRouter();
   const { ready } = useRequireRole("BUYER");
   const [items, setItems] = useState<Inquiry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,23 @@ export default function BuyerInquiriesPage() {
       );
       setCloseTarget(null);
     } finally {
+      setBusyId(null);
+    }
+  };
+
+  const createDeal = async (inquiry: Inquiry, quoteId: string) => {
+    setBusyId(inquiry.id);
+    try {
+      await api.post("/deals", {
+        inquiryId: Number(inquiry.id),
+        quoteId: Number(quoteId),
+      });
+      router.push("/buyer/deals");
+    } catch (err) {
+      // 409(이미 거래 존재 / QUOTED 아님) 등은 message 흡수
+      setFlash(
+        err instanceof ApiError ? err.message : "거래 생성 중 오류가 발생했습니다.",
+      );
       setBusyId(null);
     }
   };
@@ -110,6 +129,7 @@ export default function BuyerInquiriesPage() {
               role="buyer"
               busy={busyId === inq.id}
               onClose={() => setCloseTarget(inq)}
+              onCreateDeal={(quoteId) => void createDeal(inq, quoteId)}
             />
           ))}
         </div>

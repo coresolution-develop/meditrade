@@ -19,10 +19,21 @@ interface Props {
   onClose: () => void;
   /** 판매자 전용 — 견적 발송 모달 열기 */
   onQuote?: () => void;
+  /** 구매자 전용 — 해당 견적으로 거래 생성 */
+  onCreateDeal?: (quoteId: string) => void;
 }
 
-export function InquiryCard({ inquiry, role, busy, onClose, onQuote }: Props) {
+export function InquiryCard({
+  inquiry,
+  role,
+  busy,
+  onClose,
+  onQuote,
+  onCreateDeal,
+}: Props) {
   const closed = inquiry.status === "CLOSED";
+  const canCreateDeal =
+    role === "buyer" && inquiry.status === "QUOTED" && Boolean(onCreateDeal);
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -50,16 +61,27 @@ export function InquiryCard({ inquiry, role, busy, onClose, onQuote }: Props) {
           {inquiry.quotes.map((q) => (
             <div
               key={q.id}
-              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm"
+              className="flex flex-col gap-1 border-t border-slate-100 pt-2 first:border-t-0 first:pt-0"
             >
-              <span className="font-semibold text-slate-900">
-                {formatPrice(q.quotePrice)}
-              </span>
-              <span className="text-xs text-slate-500">
-                유효기간 {formatDate(q.validUntil)}
-              </span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-semibold text-slate-900">
+                  {formatPrice(q.quotePrice)}
+                </span>
+                <span className="text-xs text-slate-500">
+                  유효기간 {formatDate(q.validUntil)}
+                </span>
+                {canCreateDeal && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => onCreateDeal?.(q.id)}
+                    disabled={busy}
+                  >
+                    거래 생성
+                  </Button>
+                )}
+              </div>
               {q.memo && (
-                <span className="w-full text-xs text-slate-600">{q.memo}</span>
+                <span className="text-xs text-slate-600">{q.memo}</span>
               )}
             </div>
           ))}
