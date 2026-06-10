@@ -4,6 +4,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { ProductModule } from './product/product.module';
+import { CategoryModule } from './category/category.module';
 import { BusinessInfoModule } from './business-info/business-info.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { InquiryModule } from './inquiry/inquiry.module';
@@ -20,6 +21,7 @@ import { AdminModule } from './admin/admin.module';
     RedisModule,
     AuthModule,
     ProductModule,
+    CategoryModule,
     BusinessInfoModule,
     FavoriteModule,
     InquiryModule,

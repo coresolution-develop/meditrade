@@ -237,6 +237,25 @@
 
 ---
 
+## 3.5 카테고리 (CATEGORY)
+
+### GET /categories — 전체 카테고리 (공개)
+인증 불필요. 상품 등록/검색 폼의 카테고리 셀렉트에 사용한다. 정렬: `sortOrder` ASC, `id` ASC.
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "items": [
+      { "id": "1", "name": "치료기기", "parentId": null, "sortOrder": 1 }
+    ],
+    "total": 9
+  } }
+```
+> `/admin/categories`(ADMIN)와 동일 구조지만 본 엔드포인트는 **공개**다.
+
+---
+
 ## 4. 사업자 인증 (BUSINESS-INFO) — P2 묶음 B
 
 ### POST /business-info — 등록 🔒 SELLER
@@ -734,6 +753,32 @@ REQUESTED → IN_PROGRESS → COMPLETED       (terminal)
 
 ---
 
+### GET /admin/business-info?status= — 사업자 인증 심사 목록
+`status` 미지정 시 전체, 지정 시 해당 상태(`PENDING`|`APPROVED`|`REJECTED`)만. 신청자 식별을 위해 `member`(이메일/이름) 조인. 최신순.
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "items": [
+      {
+        "id": "1",
+        "memberId": "2",
+        "companyName": "메디트레이드 의료기",
+        "bizRegNo": "123-45-67890",
+        "deviceSalesLicenseNo": "제2024-서울-001234호",
+        "verifyStatus": "PENDING",
+        "createdAt": "2026-06-06T01:23:45.000Z",
+        "member": { "id": "2", "email": "seller@test.com", "name": "김판매" }
+      }
+    ],
+    "total": 1
+  } }
+```
+**에러**: 401 / 403(비ADMIN) / 400 `BAD_REQUEST`(status 오타)
+
+---
+
 ### PATCH /admin/business-info/{id} — 사업자 인증 승인/반려
 **요청**
 ```json
@@ -746,6 +791,33 @@ REQUESTED → IN_PROGRESS → COMPLETED       (terminal)
 
 **응답 200**: business-info 객체.
 **에러**: 401 / 403 / 404 / 400
+
+---
+
+### GET /admin/products?status= — 상품 검수 목록
+`status` 미지정 시 전체(`DRAFT`|`PENDING`|`ON_SALE`|`SOLD_OUT`|`HIDDEN`). 최신순 페이징(`page`/`size`, 기본 1/20).
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "items": [
+      {
+        "id": "1",
+        "sellerId": "1",
+        "categoryId": "6",
+        "name": "중고 휴대용 초음파 진단기",
+        "modelName": "US-200",
+        "conditionType": "USED",
+        "price": 3500000,
+        "status": "PENDING",
+        "createdAt": "2026-06-06T01:23:45.000Z"
+      }
+    ],
+    "total": 1, "page": 1, "size": 20
+  } }
+```
+**에러**: 401 / 403(비ADMIN) / 400 `BAD_REQUEST`(status 오타)
 
 ---
 
@@ -808,6 +880,31 @@ REQUESTED → IN_PROGRESS → COMPLETED       (terminal)
 ### PUT /admin/manufacturers/{id} — 제조사 수정 / DELETE /admin/manufacturers/{id} — 삭제
 **정책**: 현재 스키마에서 `Product` 가 `manufacturerId` FK 를 갖지 않으므로 **참조 무결성 검사 없이 항상 삭제 허용**.
 도메인에 제조사 연결이 도입되면 카테고리와 동일한 사용중 검사 추가 예정.
+
+---
+
+### GET /admin/members?role=&status= — 회원 목록
+`role`(`BUYER`|`SELLER`|`ADMIN`) / `status`(`ACTIVE`|`SUSPENDED`|`PENDING`) 필터(선택). 최신순 페이징(`page`/`size`, 기본 1/20). **`password` 등 민감정보는 응답에서 제외**.
+
+**응답 200**
+```json
+{ "success": true, "code": "OK", "message": "OK",
+  "data": {
+    "items": [
+      {
+        "id": "2",
+        "email": "seller@test.com",
+        "name": "김판매",
+        "phone": "010-1234-5678",
+        "role": "SELLER",
+        "status": "ACTIVE",
+        "createdAt": "2026-06-01T00:00:00.000Z"
+      }
+    ],
+    "total": 1, "page": 1, "size": 20
+  } }
+```
+**에러**: 401 / 403(비ADMIN) / 400 `BAD_REQUEST`(role/status 오타)
 
 ---
 

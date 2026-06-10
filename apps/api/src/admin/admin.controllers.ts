@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -34,6 +35,11 @@ import {
 export class BusinessInfoAdminController {
   constructor(private readonly service: BusinessInfoAdminService) {}
 
+  @Get()
+  findAll(@Query('status') status?: string) {
+    return this.service.findAll(status);
+  }
+
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -49,6 +55,15 @@ export class BusinessInfoAdminController {
 @Roles('ADMIN')
 export class ProductAdminController {
   constructor(private readonly service: ProductAdminService) {}
+
+  @Get()
+  findAll(
+    @Query('status') status?: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('size', new ParseIntPipe({ optional: true })) size = 20,
+  ) {
+    return this.service.findAll(status, page, size);
+  }
 
   @Patch(':id/status')
   updateStatus(
@@ -127,6 +142,16 @@ export class ManufacturerAdminController {
 @Roles('ADMIN')
 export class MemberAdminController {
   constructor(private readonly service: MemberAdminService) {}
+
+  @Get()
+  findAll(
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('size', new ParseIntPipe({ optional: true })) size = 20,
+  ) {
+    return this.service.findAll(role, status, page, size);
+  }
 
   @Patch(':id/status')
   updateStatus(

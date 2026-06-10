@@ -1,5 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { MemberStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MemberStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/notification.types';
@@ -15,12 +19,70 @@ function serialize(m: any) {
   };
 }
 
+// 목록용 — 연락처/가입일 추가. password 등 민감정보는 select 단계에서 제외.
+function serializeListItem(m: any) {
+  return {
+    ...serialize(m),
+    phone: m.phone,
+    createdAt: m.createdAt,
+  };
+}
+
+function parseRole(role?: string): Role | undefined {
+  if (role === undefined || role === '') return undefined;
+  if (!Object.values(Role).includes(role as Role)) {
+    throw new BadRequestException('유효하지 않은 role 값입니다.');
+  }
+  return role as Role;
+}
+
+function parseMemberStatus(status?: string): MemberStatus | undefined {
+  if (status === undefined || status === '') return undefined;
+  if (!Object.values(MemberStatus).includes(status as MemberStatus)) {
+    throw new BadRequestException('유효하지 않은 status 값입니다.');
+  }
+  return status as MemberStatus;
+}
+
 @Injectable()
 export class MemberAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notification: NotificationService,
   ) {}
+
+  /**
+   * 회원 목록. role/status 필터(선택), 최신순 페이징.
+   * password 는 select 에서 제외하여 응답에 노출하지 않는다.
+   */
+  async findAll(role?: string, status?: string, page = 1, size = 20) {
+    const where: { role?: Role; status?: MemberStatus } = {};
+    const memberRole = parseRole(role);
+    const memberStatus = parseMemberStatus(status);
+    if (memberRole) where.role = memberRole;
+    if (memberStatus) where.status = memberStatus;
+
+    const skip = (page - 1) * size;
+    const [items, total] = await Promise.all([
+      this.prisma.member.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          role: true,
+          status: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: size,
+      }),
+      this.prisma.member.count({ where }),
+    ]);
+    return { items: items.map(serializeListItem), total, page, size };
+  }
 
   /**
    * 회원 정지(SUSPENDED) / 해제(ACTIVE).

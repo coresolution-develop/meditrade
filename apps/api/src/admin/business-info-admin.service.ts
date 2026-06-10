@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { VerifyStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
@@ -17,12 +21,48 @@ function serialize(b: any) {
   };
 }
 
+// 심사 목록용 — 신청자 식별을 위해 member(이메일/이름) 조인 포함.
+function serializeWithMember(b: any) {
+  return {
+    ...serialize(b),
+    member: b.member
+      ? {
+          id: b.member.id.toString(),
+          email: b.member.email,
+          name: b.member.name,
+        }
+      : null,
+  };
+}
+
+function parseVerifyStatus(status?: string): VerifyStatus | undefined {
+  if (status === undefined || status === '') return undefined;
+  if (!Object.values(VerifyStatus).includes(status as VerifyStatus)) {
+    throw new BadRequestException('유효하지 않은 status 값입니다.');
+  }
+  return status as VerifyStatus;
+}
+
 @Injectable()
 export class BusinessInfoAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notification: NotificationService,
   ) {}
+
+  /**
+   * 사업자 인증 심사 목록. status 미지정 시 전체, 지정 시 해당 상태만.
+   * 신청자 식별을 위해 member(이메일/이름)를 조인한다. 최신순.
+   */
+  async findAll(status?: string) {
+    const verifyStatus = parseVerifyStatus(status);
+    const items = await this.prisma.businessInfo.findMany({
+      where: verifyStatus ? { verifyStatus } : {},
+      include: { member: { select: { id: true, email: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { items: items.map(serializeWithMember), total: items.length };
+  }
 
   /**
    * 사업자 인증 승인/반려. 결과를 해당 SELLER 에게 알림(best-effort).
